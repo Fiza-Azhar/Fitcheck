@@ -1,5 +1,5 @@
 import { Garment } from '@/interfaces/garment';
-import { AiOutfitPick, OutfitsRequestBody, GroqChatResponse } from '@/interfaces/ai';
+import { AiOutfitPick, OutfitsRequestBody, OutfitsResponseBody, GroqChatResponse } from '@/interfaces/ai';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
@@ -88,7 +88,8 @@ export async function POST(request: Request): Promise<Response> {
     const outfits = validatePicks(parsed.outfits, items);
     if (outfits.length === 0) throw new Error('no valid outfits');
 
-    return Response.json({ outfits });
+    const responseBody: OutfitsResponseBody = { outfits };
+    return Response.json(responseBody);
   } catch {
     return Response.json({ error: 'groq_failed' }, { status: 502 });
   }
