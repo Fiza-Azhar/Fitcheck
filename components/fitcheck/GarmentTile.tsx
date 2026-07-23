@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { GarmentTileProps } from '@/interfaces/garment-tile';
-import { radii, spacing } from '@/constants/design';
+import { colors, radii, spacing } from '@/constants/design';
 
 function isLight(hex: string) {
   const h = hex.replace('#', '');
@@ -8,11 +8,21 @@ function isLight(hex: string) {
   return 0.299 * r + 0.587 * g + 0.114 * b > 150;
 }
 
-export function GarmentTile({ garment, height = 120 }: GarmentTileProps) {
+export function GarmentTile({ garment, height = 150 }: GarmentTileProps) {
+  // Prefer the transparent cutout; fall back to the original photo when the
+  // background-removal sidecar wasn't available for this item.
+  const photoUri = garment.cutoutUrl ?? garment.imageUrl;
+  if (photoUri) {
+    return (
+      <View style={[styles.tile, styles.photoTile, { height }]}>
+        <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" />
+      </View>
+    );
+  }
   const light = isLight(garment.color);
   return (
     <View style={[styles.tile, { backgroundColor: garment.color, height }]}>
-      <Text style={[styles.label, { color: light ? '#2E2A26' : '#FFFFFF' }]} numberOfLines={2}>
+      <Text style={[styles.label, { color: light ? colors.text : '#FFFFFF' }]} numberOfLines={2}>
         {garment.name}
       </Text>
     </View>
@@ -20,6 +30,8 @@ export function GarmentTile({ garment, height = 120 }: GarmentTileProps) {
 }
 
 const styles = StyleSheet.create({
-  tile: { borderRadius: radii.md, padding: spacing.md, justifyContent: 'flex-end', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  tile: { borderRadius: radii.md, padding: spacing.md, justifyContent: 'flex-end', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
+  photoTile: { backgroundColor: colors.chip, padding: spacing.sm, justifyContent: 'center', alignItems: 'center' },
+  photo: { width: '100%', height: '100%' },
   label: { fontSize: 13, fontWeight: '700' },
 });

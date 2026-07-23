@@ -1,3 +1,6 @@
-export type Category = 'top' | 'bottom' | 'footwear';
-export type Occasion = 'office' | 'casual' | 'wedding' | 'winter';
-export type SeasonName = 'spring' | 'summer' | 'autumn' | 'winter';
+import { CATEGORIES, OCCASIONS, SEASONS } from '@/constants/garment';
+
+export type Category = (typeof CATEGORIES)[number];
+export type Occasion = (typeof OCCASIONS)[number];
+export type SeasonName = (typeof SEASONS)[number];
+export type Formality = 1 | 2 | 3 | 4 | 5;

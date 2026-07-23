@@ -8,9 +8,12 @@ import { ShopVariant } from '@/types/shop';
 import { Garment } from '@/interfaces/garment';
 import { colors, radii, spacing, shadow, type } from '@/constants/design';
 
+// Still a hardcoded product. This tab is the phone-side counterpart of the
+// browser extension and gets designed alongside it — the extension decides what
+// a "product" actually is. Untouched here beyond the imageUrl rename.
 const PRODUCT: Garment = {
   id: 'shop1', name: 'Terracotta Knit Polo', category: 'top', color: '#C56B4A', formality: 3,
-  pattern: 'solid', seasons: ['spring', 'autumn'], occasions: ['office', 'casual'], wearCount: 0, image: null,
+  pattern: 'solid', seasons: ['spring', 'autumn'], occasions: ['office', 'casual'], wearCount: 0, imageUrl: null, cutoutUrl: null,
 };
 
 export default function ShopScreen() {

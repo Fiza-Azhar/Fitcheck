@@ -42,3 +42,10 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Local wardrobe database and item photos
+.data/
+
+# Background-removal sidecar: local venv and logs (see services/bg-removal/README)
+services/bg-removal/.venv/
+services/bg-removal/*.log
