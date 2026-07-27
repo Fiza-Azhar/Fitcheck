@@ -2,14 +2,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Garment, GarmentDraft } from '@/interfaces/garment';
 import { WardrobeProviderProps, WardrobeValue } from '@/interfaces/wardrobe';
 import { LoadState } from '@/types/load-state';
+import { useAuthSession } from '@/lib/AuthSession';
 import { createGarment, deleteGarment, fetchGarments } from '@/lib/wardrobeApi';
 
 const WardrobeContext = createContext<WardrobeValue | null>(null);
 
-// A cache over the server, not the source of truth. Mutations hit the API first
-// and only touch local state once the server confirms them, so what's on screen
-// is always something that actually persisted.
+// A cache over Supabase, not the source of truth. Mutations hit the database
+// first and only touch local state once it confirms them, so what's on screen is
+// always something that actually persisted. The wardrobe is per-user: it reloads
+// when the signed-in user changes and empties on sign-out.
 export function WardrobeProvider({ children }: WardrobeProviderProps) {
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
   const [items, setItems] = useState<Garment[]>([]);
   const [state, setState] = useState<LoadState>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -26,9 +30,16 @@ export function WardrobeProvider({ children }: WardrobeProviderProps) {
     }
   }, []);
 
+  // Load this user's wardrobe when they sign in; clear it when they sign out, so
+  // one account's items never linger on screen into another's session.
   useEffect(() => {
+    if (!userId) {
+      setItems([]);
+      setState('ready');
+      return;
+    }
     void reload();
-  }, [reload]);
+  }, [userId, reload]);
 
   const addItem = useCallback(
     async (draft: GarmentDraft, imageBase64?: string, removeBackground?: boolean) => {

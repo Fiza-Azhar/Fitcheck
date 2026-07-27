@@ -26,4 +26,11 @@ export interface AuthScreenProps {
   footerPrompt: string;
   footerLinkLabel: string;
   onFooterLink: () => void;
+  // Inline auth error (wrong password, email taken, network). Rendered above the
+  // primary button; null/undefined hides the row. Never faked — comes straight
+  // from Supabase.
+  error?: string | null;
+  // While true the primary action is disabled and shows a submitting label, so a
+  // double-tap can't fire two sign-in requests.
+  submitting?: boolean;
 }

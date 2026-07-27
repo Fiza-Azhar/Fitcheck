@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useAuthSession } from '@/lib/AuthSession';
 import { useWardrobe } from '@/lib/WardrobeContext';
 import { filterByOccasion } from '@/lib/filtering';
 import { FilterKey } from '@/types/filter';
@@ -15,8 +17,24 @@ import { colors, spacing, type } from '@/constants/design';
 
 export default function WardrobeScreen() {
   const { items, state, error, reload, removeItem } = useWardrobe();
+  const { signOut } = useAuthSession();
   const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>('all');
+
+  // On sign-out the tab gate re-renders with a null session and redirects to
+  // /login, so there is nothing to navigate here. A failure stays visible.
+  const confirmSignOut = () => {
+    Alert.alert('Sign out', 'Sign out of Fitcheck?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          signOut().catch(() => Alert.alert('Could not sign out', 'Please try again.'));
+        },
+      },
+    ]);
+  };
 
   const confirmDelete = (g: Garment) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -37,7 +55,7 @@ export default function WardrobeScreen() {
   if (state === 'loading') {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <Text style={[type.title, styles.title]}>Fitcheck</Text>
+        <Header onSignOut={confirmSignOut} />
         <Spinner label="Opening your wardrobe…" />
       </SafeAreaView>
     );
@@ -46,7 +64,7 @@ export default function WardrobeScreen() {
   if (state === 'error') {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <Text style={[type.title, styles.title]}>Fitcheck</Text>
+        <Header onSignOut={confirmSignOut} />
         <EmptyState
           tone="error"
           icon="⚠"
@@ -62,7 +80,7 @@ export default function WardrobeScreen() {
   if (items.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <Text style={[type.title, styles.title]}>Fitcheck</Text>
+        <Header onSignOut={confirmSignOut} />
         <EmptyState
           icon="👕"
           title="Your wardrobe is empty"
@@ -78,7 +96,7 @@ export default function WardrobeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Text style={[type.title, styles.title]}>Fitcheck</Text>
+      <Header onSignOut={confirmSignOut} />
       <FilterTabs value={filter} onChange={setFilter} />
       {shown.length === 0 ? (
         <EmptyState
@@ -107,9 +125,28 @@ export default function WardrobeScreen() {
   );
 }
 
+// Title row shared by every state of the screen, with a sign-out control on the
+// right so the account is reachable from the wardrobe's home.
+function Header({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <View style={styles.header}>
+      <Text style={type.title}>Fitcheck</Text>
+      <Pressable onPress={onSignOut} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.6 }}>
+        <Ionicons name="log-out-outline" size={24} color={colors.muted} />
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  title: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   gridScroll: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
   // No flexGrow: a lone item on the last row must stay at column width, not

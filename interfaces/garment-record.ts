@@ -1,11 +1,14 @@
 import { Category, Formality, Occasion, SeasonName } from '@/types/garment';
 
-// A garment as persisted server-side. Differs from `Garment` deliberately: the
-// server stores a bare filename and stays ignorant of how clients reach it, so
-// deploying behind a real origin later is a client config change, not a data
-// migration.
+// A garment row as stored in Supabase Postgres and returned by the client
+// (PostgREST). Differs from `Garment` deliberately: the row stores Storage object
+// *paths*, not display URLs — the client mints short-lived signed URLs from them,
+// so a row is portable across devices and the extension.
 export interface GarmentRecord {
   id: string;
+  // Owner. Defaulted to auth.uid() by the DB and enforced by RLS; the client
+  // sets it explicitly on insert so the returned row is complete.
+  userId: string;
   name: string;
   category: Category;
   color: string;
@@ -14,26 +17,10 @@ export interface GarmentRecord {
   seasons: SeasonName[];
   occasions: Occasion[];
   wearCount: number;
-  imageFilename: string | null;
-  // Transparent PNG cutout produced by the background-removal sidecar. Null when
-  // the sidecar is unconfigured or failed — the app then falls back to the
-  // original photo rather than inventing anything.
-  cutoutFilename: string | null;
-  createdAt: string;
-}
-
-// Row shape as node:sqlite hands it back — arrays are JSON-encoded TEXT.
-export interface GarmentRow {
-  id: string;
-  name: string;
-  category: string;
-  color: string;
-  formality: number;
-  pattern: string;
-  seasons: string;
-  occasions: string;
-  wearCount: number;
-  imageFilename: string | null;
-  cutoutFilename: string | null;
+  // Storage object paths under the garment-images bucket, or null. The cutout is
+  // the transparent PNG from the bg-removal sidecar; null when unconfigured or it
+  // failed — the app then falls back to the original photo rather than inventing.
+  imagePath: string | null;
+  cutoutPath: string | null;
   createdAt: string;
 }

@@ -1,31 +1,36 @@
+import { decode } from 'base64-arraybuffer';
 import { Garment, GarmentDraft } from '@/interfaces/garment';
 import { GarmentRecord } from '@/interfaces/garment-record';
-import {
-  CreateGarmentRequestBody,
-  CreateGarmentResponseBody,
-  GarmentsResponseBody,
-} from '@/interfaces/wardrobe-api';
-import { cutoutUrlFor, imageUrlFor } from '@/lib/apiBase';
+import { supabase } from '@/lib/supabase';
 
-const TIMEOUT_MS = 15000;
+// Talks straight to Supabase with the anon key. RLS scopes every query to the
+// signed-in user via the session JWT, so there is no manual userId filtering and
+// no way to read another user's rows. Failures throw — nothing here invents a
+// fallback, matching the app's "a silently-empty wardrobe is a bug, not a state"
+// rule.
 
-// Failures throw. Nothing here invents a fallback result — a wardrobe that
-// silently renders as empty when the server is down is indistinguishable from
-// a wardrobe that IS empty, which is exactly the class of bug that hid the
-// broken Groq key for weeks.
-async function request(path: string, init?: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(path, { ...init, signal: controller.signal });
-    if (!res.ok) throw new Error(`${path} responded ${res.status}`);
-    return res;
-  } finally {
-    clearTimeout(timer);
-  }
+const BUCKET = 'garment-images';
+// Signed URLs are short-lived; the wardrobe re-fetches (and re-signs) on load and
+// after every mutation, so an hour is comfortably longer than a session's use.
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+function newGarmentId(): string {
+  return `g${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function toGarment(record: GarmentRecord): Garment {
+async function signedUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+  return data?.signedUrl ?? null;
+}
+
+// Row → the shape the app renders. Image/cutout paths become signed URLs; a
+// missing path stays null and the tile falls back to the garment colour.
+async function toGarment(record: GarmentRecord): Promise<Garment> {
+  const [imageUrl, cutoutUrl] = await Promise.all([
+    signedUrl(record.imagePath),
+    signedUrl(record.cutoutPath),
+  ]);
   return {
     id: record.id,
     name: record.name,
@@ -36,15 +41,61 @@ function toGarment(record: GarmentRecord): Garment {
     seasons: record.seasons,
     occasions: record.occasions,
     wearCount: record.wearCount,
-    imageUrl: imageUrlFor(record.id, record.imageFilename),
-    cutoutUrl: cutoutUrlFor(record.id, record.cutoutFilename),
+    imageUrl,
+    cutoutUrl,
   };
 }
 
+// Best-effort background removal. The rembg sidecar is server-only (its URL lives
+// in a non-public env var), so the client reaches it through a thin API route
+// that returns the cutout base64 without touching the database. Null means "no
+// cutout" — the garment still saves with its original photo.
+async function requestCutout(imageBase64: string): Promise<string | null> {
+  // TEMP DIAGNOSTIC: the cutout hop fails silently on device. Log which part
+  // fails and give the fetch a timeout so it can't hang forever. Remove once
+  // the root cause is confirmed.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    console.log('[cutout] requesting /api/remove-bg, image b64 len =', imageBase64.length);
+    const res = await fetch('/api/remove-bg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64 }),
+      signal: controller.signal,
+    });
+    console.log('[cutout] response status =', res.status);
+    if (!res.ok) {
+      console.log('[cutout] non-ok body =', await res.text().catch(() => '<unreadable>'));
+      return null;
+    }
+    const data = (await res.json()) as { cutoutBase64: string | null };
+    console.log('[cutout] cutoutBase64 len =', data.cutoutBase64?.length ?? 'null');
+    return typeof data.cutoutBase64 === 'string' && data.cutoutBase64.length > 0
+      ? data.cutoutBase64
+      : null;
+  } catch (e) {
+    console.log('[cutout] fetch threw:', e instanceof Error ? `${e.name}: ${e.message}` : e);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function uploadImage(path: string, base64: string, contentType: string): Promise<void> {
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, decode(base64), { contentType, upsert: true });
+  if (error) throw new Error(`Image upload failed: ${error.message}`);
+}
+
 export async function fetchGarments(): Promise<Garment[]> {
-  const res = await request('/api/garments');
-  const body = (await res.json()) as GarmentsResponseBody;
-  return body.garments.map(toGarment);
+  const { data, error } = await supabase
+    .from('garments')
+    .select('*')
+    .order('createdAt', { ascending: false });
+  if (error) throw new Error(error.message);
+  return Promise.all((data as GarmentRecord[]).map(toGarment));
 }
 
 export async function createGarment(
@@ -52,16 +103,65 @@ export async function createGarment(
   imageBase64?: string,
   removeBackground?: boolean,
 ): Promise<Garment> {
-  const body: CreateGarmentRequestBody = { draft, imageBase64, removeBackground };
-  const res = await request('/api/garments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const created = (await res.json()) as CreateGarmentResponseBody;
-  return toGarment(created.garment);
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) throw new Error('You are signed out — sign in and try again.');
+
+  const id = newGarmentId();
+  let imagePath: string | null = null;
+  let cutoutPath: string | null = null;
+
+  if (imageBase64) {
+    // The photo must land before the row so a saved garment never points at a
+    // missing image. A failed upload aborts the whole create.
+    imagePath = `${uid}/${id}.jpg`;
+    await uploadImage(imagePath, imageBase64, 'image/jpeg');
+
+    if (removeBackground !== false) {
+      const cutoutBase64 = await requestCutout(imageBase64);
+      if (cutoutBase64) {
+        const path = `${uid}/${id}-cutout.png`;
+        try {
+          await uploadImage(path, cutoutBase64, 'image/png');
+          cutoutPath = path;
+          console.log('[cutout] uploaded cutout to', path);
+        } catch (e) {
+          // TEMP DIAGNOSTIC: surface why the cutout upload failed on device.
+          console.log('[cutout] upload threw:', e instanceof Error ? e.message : e);
+          // Cutout is a nicety, not a requirement — degrade to the original.
+          cutoutPath = null;
+        }
+      }
+    }
+  }
+
+  const row: GarmentRecord = {
+    id,
+    userId: uid,
+    ...draft,
+    wearCount: 0,
+    imagePath,
+    cutoutPath,
+    createdAt: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase.from('garments').insert(row).select().single();
+  if (error) throw new Error(error.message);
+  return toGarment(data as GarmentRecord);
 }
 
 export async function deleteGarment(id: string): Promise<void> {
-  await request(`/api/garments/${id}`, { method: 'DELETE' });
+  // Read the paths first so the Storage objects go with the row; RLS ensures we
+  // only ever see (and delete) our own.
+  const { data } = await supabase
+    .from('garments')
+    .select('imagePath, cutoutPath')
+    .eq('id', id)
+    .single();
+
+  const paths = [data?.imagePath, data?.cutoutPath].filter((p): p is string => Boolean(p));
+  if (paths.length > 0) await supabase.storage.from(BUCKET).remove(paths);
+
+  const { error } = await supabase.from('garments').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }
