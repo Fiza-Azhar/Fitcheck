@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { confirmAction, notify } from '@/lib/confirm';
 import { useAuthSession } from '@/lib/AuthSession';
 import { useWardrobe } from '@/lib/WardrobeContext';
 import { filterByOccasion } from '@/lib/filtering';
@@ -23,33 +24,22 @@ export default function WardrobeScreen() {
 
   // On sign-out the tab gate re-renders with a null session and redirects to
   // /login, so there is nothing to navigate here. A failure stays visible.
+  // confirmAction (not Alert) so the dialog and its action work on web too.
   const confirmSignOut = () => {
-    Alert.alert('Sign out', 'Sign out of Fitcheck?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          signOut().catch(() => Alert.alert('Could not sign out', 'Please try again.'));
-        },
-      },
-    ]);
+    void confirmAction('Sign out', 'Sign out of Fitcheck?', 'Sign out').then((ok) => {
+      if (ok) signOut().catch(() => notify('Could not sign out', 'Please try again.'));
+    });
   };
 
+  // confirmAction (not Alert) so the confirm dialog and its action work on web too.
   const confirmDelete = (g: Garment) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Remove item', `Remove “${g.name}” from your wardrobe?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          removeItem(g.id).catch(() =>
-            Alert.alert('Could not remove', 'The item is still there — check the server is running.'),
-          );
-        },
-      },
-    ]);
+    void confirmAction('Remove item', `Remove “${g.name}” from your wardrobe?`, 'Remove').then((ok) => {
+      if (!ok) return;
+      removeItem(g.id).catch(() =>
+        notify('Could not remove', 'The item is still there — check the server is running.'),
+      );
+    });
   };
 
   if (state === 'loading') {
