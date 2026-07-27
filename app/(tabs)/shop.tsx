@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Image, Linking, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import { confirmAction, notify } from '@/lib/confirm';
 import { useWardrobe } from '@/lib/WardrobeContext';
 import { fetchRecentChecks } from '@/lib/shopChecksApi';
 import { fetchWishlist, removeWishlistItem } from '@/lib/wishlistApi';
@@ -27,7 +28,17 @@ export default function ShopScreen() {
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [state, setState] = useState<LoadState>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  // Every wishlist item currently mid-action. A Set (not a single id) so that
+  // finishing one item's action can't re-enable another item's still-running one.
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+
+  const markBusy = (id: string) => setBusyIds((prev) => new Set(prev).add(id));
+  const clearBusy = (id: string) =>
+    setBusyIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
 
   const load = useCallback(async () => {
     setState('loading');
@@ -52,55 +63,46 @@ export default function ShopScreen() {
   );
 
   const buy = (item: WishlistItem) => {
-    Alert.alert('Add to wardrobe', `Move “${item.name}” into your wardrobe as owned?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Add',
-        onPress: async () => {
-          setBusyId(item.id);
-          try {
-            // Promote to a real garment first; only drop it from the wishlist once
-            // that persisted, so a failure never loses the saved item.
-            await addItem({
-              name: item.name,
-              category: item.category,
-              color: item.color,
-              formality: item.formality,
-              pattern: item.pattern,
-              seasons: item.seasons,
-              occasions: item.occasions,
-            });
-            await removeWishlistItem(item.id);
-            setWishlist((prev) => prev.filter((w) => w.id !== item.id));
-          } catch {
-            Alert.alert('Could not add', 'The item is still in your wishlist — try again.');
-          } finally {
-            setBusyId(null);
-          }
-        },
+    void confirmAction('Add to wardrobe', `Move “${item.name}” into your wardrobe as owned?`, 'Add').then(
+      async (ok) => {
+        if (!ok) return;
+        markBusy(item.id);
+        try {
+          // Promote to a real garment first; only drop it from the wishlist once
+          // that persisted, so a failure never loses the saved item.
+          await addItem({
+            name: item.name,
+            category: item.category,
+            color: item.color,
+            formality: item.formality,
+            pattern: item.pattern,
+            seasons: item.seasons,
+            occasions: item.occasions,
+          });
+          await removeWishlistItem(item.id);
+          setWishlist((prev) => prev.filter((w) => w.id !== item.id));
+        } catch {
+          notify('Could not add', 'The item is still in your wishlist — try again.');
+        } finally {
+          clearBusy(item.id);
+        }
       },
-    ]);
+    );
   };
 
   const remove = (item: WishlistItem) => {
-    Alert.alert('Remove', `Remove “${item.name}” from your wishlist?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          setBusyId(item.id);
-          try {
-            await removeWishlistItem(item.id);
-            setWishlist((prev) => prev.filter((w) => w.id !== item.id));
-          } catch {
-            Alert.alert('Could not remove', 'Please try again.');
-          } finally {
-            setBusyId(null);
-          }
-        },
-      },
-    ]);
+    void confirmAction('Remove', `Remove “${item.name}” from your wishlist?`, 'Remove').then(async (ok) => {
+      if (!ok) return;
+      markBusy(item.id);
+      try {
+        await removeWishlistItem(item.id);
+        setWishlist((prev) => prev.filter((w) => w.id !== item.id));
+      } catch {
+        notify('Could not remove', 'Please try again.');
+      } finally {
+        clearBusy(item.id);
+      }
+    });
   };
 
   return (
@@ -126,7 +128,7 @@ export default function ShopScreen() {
       ) : tab === 'checks' ? (
         <ChecksList checks={checks} />
       ) : (
-        <WishlistList wishlist={wishlist} busyId={busyId} onBuy={buy} onRemove={remove} />
+        <WishlistList wishlist={wishlist} busyIds={busyIds} onBuy={buy} onRemove={remove} />
       )}
     </SafeAreaView>
   );
@@ -193,12 +195,12 @@ function VerdictPill({ check }: { check: ShopCheck }) {
 
 function WishlistList({
   wishlist,
-  busyId,
+  busyIds,
   onBuy,
   onRemove,
 }: {
   wishlist: WishlistItem[];
-  busyId: string | null;
+  busyIds: Set<string>;
   onBuy: (i: WishlistItem) => void;
   onRemove: (i: WishlistItem) => void;
 }) {
@@ -214,7 +216,7 @@ function WishlistList({
   return (
     <ScrollView contentContainerStyle={styles.list}>
       {wishlist.map((item) => {
-        const busy = busyId === item.id;
+        const busy = busyIds.has(item.id);
         return (
           <View key={item.id} style={styles.row}>
             <Thumb uri={item.imageUrl} color={item.color} />

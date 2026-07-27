@@ -22,10 +22,12 @@ create table if not exists public.shop_checks (
   price             text,   -- as scraped, e.g. "Rs. 499"; may be null
   category          text,   -- analyzed category, or null when not a garment
   color             text,   -- analyzed dominant colour hex, or null
-  -- 'similar' | 'goes' | 'fresh' | 'not_garment' — what the badge showed.
-  verdict           text    not null,
-  "goesWithCount"   integer not null default 0,
-  "alreadyOwnCount" integer not null default 0,
+  -- 'similar' | 'goes' | 'fresh' | 'not_garment' — what the badge showed. CHECKed
+  -- so an unknown verdict can't reach VerdictPill (which would dereference a
+  -- missing map entry) even though RLS lets the user write these rows directly.
+  verdict           text    not null check (verdict in ('similar', 'goes', 'fresh', 'not_garment')),
+  "goesWithCount"   integer not null default 0 check ("goesWithCount" >= 0),
+  "alreadyOwnCount" integer not null default 0 check ("alreadyOwnCount" >= 0),
   "checkedAt"       text    not null
 );
 
@@ -49,10 +51,12 @@ create table if not exists public.wishlist_items (
   name          text    not null,
   category      text    not null,
   color         text    not null,
-  formality     integer not null,
+  -- formality 1–5 and array-typed seasons/occasions match the garment shape the
+  -- wardrobe-promotion flow assumes, so a bad row can't poison it.
+  formality     integer not null check (formality between 1 and 5),
   pattern       text    not null,
-  seasons       jsonb   not null,
-  occasions     jsonb   not null,
+  seasons       jsonb   not null check (jsonb_typeof(seasons) = 'array'),
+  occasions     jsonb   not null check (jsonb_typeof(occasions) = 'array'),
   "productUrl"  text,
   "imageUrl"    text,   -- external CDN URL of the product image; may be null
   price         text,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,20 +31,15 @@ export default function WardrobeScreen() {
     });
   };
 
+  // confirmAction (not Alert) so the confirm dialog and its action work on web too.
   const confirmDelete = (g: Garment) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Remove item', `Remove “${g.name}” from your wardrobe?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          removeItem(g.id).catch(() =>
-            Alert.alert('Could not remove', 'The item is still there — check the server is running.'),
-          );
-        },
-      },
-    ]);
+    void confirmAction('Remove item', `Remove “${g.name}” from your wardrobe?`, 'Remove').then((ok) => {
+      if (!ok) return;
+      removeItem(g.id).catch(() =>
+        notify('Could not remove', 'The item is still there — check the server is running.'),
+      );
+    });
   };
 
   if (state === 'loading') {
