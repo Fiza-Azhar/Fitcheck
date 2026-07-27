@@ -1,7 +1,7 @@
 # Keyboard-Aware Input UX — Design
 
 **Date:** 2026-07-27
-**Status:** Approved design, ready for implementation planning
+**Status:** Implemented — see PR #3
 **Motivation:** Signing in and filling out the Add Item form is visibly janky. On
 Android the form *snaps* to a new position when the keyboard opens, the focused
 field can end up hidden behind the keyboard, and there is no next-field flow or
@@ -45,7 +45,7 @@ pushed up above the keyboard on the Add screen.
 | Focus animation driver | **Reanimated 4** (already installed, 4.1.1) |
 | Android soft input mode | **Keep `adjustResize`** |
 | Tab bar vs keyboard | **`tabBarHideOnKeyboard: true`** |
-| Spec committed to git | **No** — written but left uncommitted |
+| Spec committed to git | **Yes** — committed alongside the implementation in PR #3 |
 
 ### 2.1 Why not Reanimated's `useAnimatedKeyboard`
 
@@ -136,7 +136,7 @@ swipe-to-dismiss.
 A Reanimated shared value tracks focus progress, driven by the `TextInput`'s
 `onFocus`/`onBlur`:
 
-```
+```text
 focus = useSharedValue(0)
 onFocus  → focus.value = withTiming(1, { duration: 180 })
 onBlur   → focus.value = withTiming(0, { duration: 180 })
