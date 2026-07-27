@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { KeyboardTypeOptions, TextInputProps } from 'react-native';
+import { ReactNode, Ref } from 'react';
+import { KeyboardTypeOptions, TextInput, TextInputProps } from 'react-native';
 
 export interface AuthFieldProps {
   label: string;
@@ -13,6 +13,18 @@ export interface AuthFieldProps {
   // Optional right-aligned link on the label row, e.g. "Forgot Password?".
   actionLabel?: string;
   onAction?: () => void;
+  // Forwarded to the inner TextInput so a screen can build a focus chain
+  // (Email → Password → submit). React 19 passes `ref` as an ordinary prop to
+  // function components, so AuthField needs no forwardRef.
+  ref?: Ref<TextInput>;
+  // "next" advances to the next field and keeps the keyboard up; "go"/"done"
+  // ends the chain. See onSubmitEditing.
+  returnKeyType?: TextInputProps['returnKeyType'];
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  // Lets password managers recognise the field. Without these, autofill can't
+  // see the email/password inputs at all.
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
 }
 
 export interface AuthScreenProps {

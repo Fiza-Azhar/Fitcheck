@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthScreen } from '@/components/fitcheck/AuthScreen';
 import { AuthField } from '@/components/fitcheck/AuthField';
@@ -14,6 +15,9 @@ export default function SignupScreen() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInput>(null);
 
   const enter = async () => {
     if (submitting) return;
@@ -54,28 +58,48 @@ export default function SignupScreen() {
         onChangeText={setName}
         placeholder="Alex Morgan"
         autoCapitalize="words"
+        autoComplete="name"
+        textContentType="name"
+        returnKeyType="next"
+        onSubmitEditing={() => emailRef.current?.focus()}
       />
       <AuthField
+        ref={emailRef}
         label="Email Address"
         value={email}
         onChangeText={setEmail}
         placeholder="alex@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
       />
       <AuthField
+        ref={passwordRef}
         label="Password"
         value={password}
         onChangeText={setPassword}
         placeholder="••••••••"
         secure
+        autoComplete="new-password"
+        textContentType="newPassword"
+        returnKeyType="next"
+        onSubmitEditing={() => confirmRef.current?.focus()}
       />
       <AuthField
+        ref={confirmRef}
         label="Confirm Password"
         value={confirm}
         onChangeText={setConfirm}
         placeholder="••••••••"
         secure
+        autoComplete="new-password"
+        textContentType="newPassword"
+        // Last field in the chain: Return creates the account.
+        returnKeyType="go"
+        onSubmitEditing={() => void enter()}
       />
     </AuthScreen>
   );

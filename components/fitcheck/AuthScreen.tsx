@@ -1,13 +1,5 @@
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Pressable, Alert, StyleSheet } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreenProps } from '@/interfaces/auth';
@@ -31,47 +23,56 @@ export function AuthScreen({
 }: AuthScreenProps) {
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
+      {/* Replaces a KeyboardAvoidingView whose Android behavior was `undefined` —
+          i.e. it did nothing, leaving the window resize to jump the centred form
+          to a new position in one step. This view's default mode="insets" makes
+          room for the keyboard through content insets instead of relaying out, so
+          content height never changes, styles.scroll can keep its vertical
+          centring, and the library animates scroll offset in sync with the
+          keyboard on both platforms. */}
+      <KeyboardAwareScrollView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        contentContainerStyle={styles.scroll}
+        // Keeps the focused field clear of the keyboard rather than flush to it.
+        bottomOffset={spacing.xl}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.wordmark}>Fitcheck</Text>
+        <Text style={styles.wordmark}>Fitcheck</Text>
 
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
 
-          <View style={styles.form}>{children}</View>
+        <View style={styles.form}>{children}</View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Pressable
-            style={({ pressed }) => [styles.primary, (pressed || submitting) && styles.pressed]}
-            onPress={onPrimary}
-            disabled={submitting}
-          >
-            <Text style={styles.primaryTxt}>{submitting ? 'Please wait…' : primaryLabel}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.primary, (pressed || submitting) && styles.pressed]}
+          onPress={onPrimary}
+          disabled={submitting}
+        >
+          <Text style={styles.primaryTxt}>{submitting ? 'Please wait…' : primaryLabel}</Text>
+        </Pressable>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.line} />
+          <Text style={styles.dividerTxt}>OR CONTINUE WITH</Text>
+          <View style={styles.line} />
+        </View>
+
+        <View style={styles.socialRow}>
+          <SocialButton provider="apple" />
+          <SocialButton provider="google" />
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerTxt}>{footerPrompt} </Text>
+          <Pressable onPress={onFooterLink} hitSlop={8}>
+            <Text style={styles.footerLink}>{footerLinkLabel}</Text>
           </Pressable>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.line} />
-            <Text style={styles.dividerTxt}>OR CONTINUE WITH</Text>
-            <View style={styles.line} />
-          </View>
-
-          <View style={styles.socialRow}>
-            <SocialButton provider="apple" />
-            <SocialButton provider="google" />
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerTxt}>{footerPrompt} </Text>
-            <Pressable onPress={onFooterLink} hitSlop={8}>
-              <Text style={styles.footerLink}>{footerLinkLabel}</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

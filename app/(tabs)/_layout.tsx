@@ -27,6 +27,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        // Otherwise Android's adjustResize rides the tab bar up on top of the
+        // keyboard while typing in the Add Item form. Chosen over app.json's
+        // softwareKeyboardLayoutMode: "pan", which would break keyboard-controller
+        // — it requires adjustResize.
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Wardrobe', tabBarIcon: ({ color, size }) => <Ionicons name="shirt-outline" color={color} size={size} /> }} />
