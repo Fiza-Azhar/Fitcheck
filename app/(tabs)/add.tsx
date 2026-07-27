@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert, TextInput } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert, TextInput } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -57,6 +58,7 @@ export default function AddScreen() {
   const [draft, setDraft] = useState<GarmentDraft>(emptyDraft());
   const [aiFailed, setAiFailed] = useState(false);
   const [removeBg, setRemoveBg] = useState(true);
+  const patternRef = useRef<TextInput>(null);
 
   const reset = useCallback(() => {
     setPhase('idle');
@@ -164,7 +166,14 @@ export default function AddScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Text style={[type.title, styles.title]}>Add Item</Text>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      {/* Was a bare ScrollView with no keyboard handling at all, so typing a name
+          put the keyboard straight over the lower fields and the save button. */}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.body}
+        bottomOffset={spacing.xl}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {phase === 'idle' && (
           <Pressable style={styles.upload} onPress={() => setPickerOpen(true)}>
             <Text style={styles.plus}>＋</Text>
@@ -222,6 +231,9 @@ export default function AddScreen() {
                 placeholder="e.g. Navy Wool Blazer"
                 placeholderTextColor={colors.muted}
                 maxLength={60}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => patternRef.current?.focus()}
               />
             </View>
 
@@ -242,12 +254,17 @@ export default function AddScreen() {
             <View style={styles.field}>
               <Text style={type.label}>Pattern</Text>
               <TextInput
+                ref={patternRef}
                 style={styles.input}
                 value={draft.pattern}
                 onChangeText={(pattern) => setDraft((d) => ({ ...d, pattern }))}
                 placeholder="e.g. solid"
                 placeholderTextColor={colors.muted}
                 maxLength={60}
+                // Last *text* field, but not the end of the form — category,
+                // formality, seasons and occasions still follow, and canSave needs
+                // a season and an occasion. So Return dismisses; it must not save.
+                returnKeyType="done"
               />
             </View>
 
@@ -318,7 +335,7 @@ export default function AddScreen() {
             </Pressable>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <PhotoSourceSheet
         visible={pickerOpen}

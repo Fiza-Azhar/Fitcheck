@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthScreen } from '@/components/fitcheck/AuthScreen';
 import { AuthField } from '@/components/fitcheck/AuthField';
@@ -12,6 +13,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const enter = async () => {
     if (submitting) return;
@@ -47,14 +49,24 @@ export default function LoginScreen() {
         placeholder="alex@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
       />
       <AuthField
+        ref={passwordRef}
         label="Password"
         value={password}
         onChangeText={setPassword}
         placeholder="••••••••"
         secure
         actionLabel="Forgot Password?"
+        autoComplete="current-password"
+        textContentType="password"
+        // Last field in the chain: Return signs in rather than just dismissing.
+        returnKeyType="go"
+        onSubmitEditing={() => void enter()}
       />
     </AuthScreen>
   );
