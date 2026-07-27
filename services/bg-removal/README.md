@@ -24,11 +24,18 @@ The first request downloads the `u2net` model (~170 MB) into `~/.u2net/`.
 
 ## Run
 
+You normally don't start this by hand. `npm start` (and `npm run web`) launch it
+automatically via `scripts/dev.js` — that script checks `:7000/health` first and
+reuses an already-running sidecar, so cutouts can't silently break just because
+you forgot to start it. It shuts down when Expo does.
+
+To run it standalone (e.g. debugging just the sidecar):
+
 ```bash
 python app.py         # listens on http://127.0.0.1:7000
 ```
 
-Leave it running alongside `npx expo start`.
+`npm run start:expo-only` starts Expo without the sidecar if you ever need that.
 
 ## Point the app at it
 

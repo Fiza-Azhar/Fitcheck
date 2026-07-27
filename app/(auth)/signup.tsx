@@ -3,19 +3,37 @@ import { useRouter } from 'expo-router';
 import { AuthScreen } from '@/components/fitcheck/AuthScreen';
 import { AuthField } from '@/components/fitcheck/AuthField';
 import { useAuthSession } from '@/lib/AuthSession';
+import { authErrorMessage } from '@/lib/authErrors';
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { signIn } = useAuthSession();
+  const { signUp } = useAuthSession();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // No real auth yet: mark the session signed-in and enter the app.
-  const enter = () => {
-    signIn();
-    router.replace('/');
+  const enter = async () => {
+    if (submitting) return;
+    setError(null);
+    // Confirm-match is a client-side check the backend can't make for us.
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await signUp(name.trim(), email.trim(), password);
+      // Email confirmation is disabled for the demo, so signUp yields a live
+      // session immediately and the tab gate lets us in.
+      router.replace('/');
+    } catch (e) {
+      setError(authErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -24,6 +42,8 @@ export default function SignupScreen() {
       subtitle="Start building your digital wardrobe."
       primaryLabel="Create Account"
       onPrimary={enter}
+      error={error}
+      submitting={submitting}
       footerPrompt="Already have an account?"
       footerLinkLabel="Sign In"
       onFooterLink={() => router.push('/login')}

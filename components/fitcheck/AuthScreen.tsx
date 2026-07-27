@@ -26,6 +26,8 @@ export function AuthScreen({
   footerPrompt,
   footerLinkLabel,
   onFooterLink,
+  error,
+  submitting,
 }: AuthScreenProps) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -41,11 +43,14 @@ export function AuthScreen({
 
           <View style={styles.form}>{children}</View>
 
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
           <Pressable
-            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.primary, (pressed || submitting) && styles.pressed]}
             onPress={onPrimary}
+            disabled={submitting}
           >
-            <Text style={styles.primaryTxt}>{primaryLabel}</Text>
+            <Text style={styles.primaryTxt}>{submitting ? 'Please wait…' : primaryLabel}</Text>
           </Pressable>
 
           <View style={styles.dividerRow}>
@@ -127,6 +132,13 @@ const styles = StyleSheet.create({
   },
   primaryTxt: { fontSize: 16, fontWeight: '700', color: colors.surface },
   pressed: { opacity: 0.7 },
+  error: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.warn,
+    textAlign: 'center',
+    marginTop: -spacing.sm,
+  },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerTxt: { fontSize: 11, fontWeight: '600', color: colors.muted, letterSpacing: 0.5 },

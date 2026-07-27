@@ -1,13 +1,24 @@
 import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthSession } from '@/lib/AuthSession';
 import { colors } from '@/constants/design';
 
 export default function TabLayout() {
-  const { signedIn } = useAuthSession();
+  const { session, loading } = useAuthSession();
 
-  // Not signed in this run → send them to the login screen first.
-  if (!signedIn) return <Redirect href="/login" />;
+  // Wait for the persisted session to be restored before deciding, so an
+  // already-signed-in user never sees the login screen flash on cold start.
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+
+  // No session → send them to the login screen first.
+  if (!session) return <Redirect href="/login" />;
 
   return (
     <Tabs
