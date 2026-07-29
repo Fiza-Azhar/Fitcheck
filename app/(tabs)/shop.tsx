@@ -6,6 +6,7 @@ import { confirmAction, notify } from '@/lib/confirm';
 import { useWardrobe } from '@/lib/WardrobeContext';
 import { fetchRecentChecks } from '@/lib/shopChecksApi';
 import { fetchWishlist, removeWishlistItem } from '@/lib/wishlistApi';
+import { fetchRemoteImageBase64 } from '@/lib/remoteImage';
 import { ShopCheck } from '@/interfaces/shop-check';
 import { WishlistItem } from '@/interfaces/wishlist-item';
 import { EmptyState } from '@/components/fitcheck/EmptyState';
@@ -68,17 +69,25 @@ export default function ShopScreen() {
         if (!ok) return;
         markBusy(item.id);
         try {
+          // Carry the product photo across, so the wardrobe tile shows the
+          // garment instead of falling back to a flat colour block the way it
+          // does for any item saved without an image. Null just means the
+          // merchant image wouldn't download — the purchase still goes through.
+          const imageBase64 = item.imageUrl ? await fetchRemoteImageBase64(item.imageUrl) : null;
           // Promote to a real garment first; only drop it from the wishlist once
           // that persisted, so a failure never loses the saved item.
-          await addItem({
-            name: item.name,
-            category: item.category,
-            color: item.color,
-            formality: item.formality,
-            pattern: item.pattern,
-            seasons: item.seasons,
-            occasions: item.occasions,
-          });
+          await addItem(
+            {
+              name: item.name,
+              category: item.category,
+              color: item.color,
+              formality: item.formality,
+              pattern: item.pattern,
+              seasons: item.seasons,
+              occasions: item.occasions,
+            },
+            imageBase64 ?? undefined,
+          );
           await removeWishlistItem(item.id);
           setWishlist((prev) => prev.filter((w) => w.id !== item.id));
         } catch {

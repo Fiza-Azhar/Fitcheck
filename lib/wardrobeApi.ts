@@ -50,32 +50,28 @@ async function toGarment(record: GarmentRecord): Promise<Garment> {
 // in a non-public env var), so the client reaches it through a thin API route
 // that returns the cutout base64 without touching the database. Null means "no
 // cutout" — the garment still saves with its original photo.
+// Must outlast the route's own wait on the sidecar (lib/server/bg.ts), or a cold
+// start gets aborted here just as the server was about to answer — the client
+// would report "no cutout" for a request that actually succeeded.
+const CUTOUT_TIMEOUT_MS = 70000;
+
 async function requestCutout(imageBase64: string): Promise<string | null> {
-  // TEMP DIAGNOSTIC: the cutout hop fails silently on device. Log which part
-  // fails and give the fetch a timeout so it can't hang forever. Remove once
-  // the root cause is confirmed.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  const timer = setTimeout(() => controller.abort(), CUTOUT_TIMEOUT_MS);
   try {
-    console.log('[cutout] requesting /api/remove-bg, image b64 len =', imageBase64.length);
     const res = await fetch('/api/remove-bg', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64 }),
       signal: controller.signal,
     });
-    console.log('[cutout] response status =', res.status);
-    if (!res.ok) {
-      console.log('[cutout] non-ok body =', await res.text().catch(() => '<unreadable>'));
-      return null;
-    }
+    if (!res.ok) return null;
     const data = (await res.json()) as { cutoutBase64: string | null };
-    console.log('[cutout] cutoutBase64 len =', data.cutoutBase64?.length ?? 'null');
     return typeof data.cutoutBase64 === 'string' && data.cutoutBase64.length > 0
       ? data.cutoutBase64
       : null;
-  } catch (e) {
-    console.log('[cutout] fetch threw:', e instanceof Error ? `${e.name}: ${e.message}` : e);
+  } catch {
+    // Sidecar off, asleep, or slow — the garment still saves with its photo.
     return null;
   } finally {
     clearTimeout(timer);
@@ -124,10 +120,7 @@ export async function createGarment(
         try {
           await uploadImage(path, cutoutBase64, 'image/png');
           cutoutPath = path;
-          console.log('[cutout] uploaded cutout to', path);
-        } catch (e) {
-          // TEMP DIAGNOSTIC: surface why the cutout upload failed on device.
-          console.log('[cutout] upload threw:', e instanceof Error ? e.message : e);
+        } catch {
           // Cutout is a nicety, not a requirement — degrade to the original.
           cutoutPath = null;
         }

@@ -1,0 +1,8 @@
+# The local virtualenv is hundreds of megabytes and is rebuilt inside the image
+# from requirements.txt anyway — copying it in would bloat the build context and
+# ship the wrong platform's binaries.
+.venv/
+*.log
+__pycache__/
+*.pyc
+models/
