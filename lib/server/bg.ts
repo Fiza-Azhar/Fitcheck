@@ -8,11 +8,16 @@ import { BgRemovalRequestBody, BgRemovalResponseBody } from '@/interfaces/bg-rem
 // caller saves the garment anyway with the original photo. That is honest
 // degradation, not a fake result — the tile shows the real photo, just uncut.
 
-const TIMEOUT_MS = 20000;
+// A hosted sidecar on a free tier sleeps when idle, and the first request after
+// that pays for the container waking and the model loading before any pixels are
+// touched. 20s was tuned for a warm process on localhost and would abort every
+// cold start — which reads to the user as "background removal just doesn't work".
+const TIMEOUT_MS = 60000;
 
 export async function removeBackground(imageBase64: string): Promise<string | null> {
   const url = process.env.BG_REMOVAL_URL;
   if (!url) return null; // feature off — sidecar not configured
+  const token = process.env.BG_REMOVAL_TOKEN;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -20,7 +25,12 @@ export async function removeBackground(imageBase64: string): Promise<string | nu
     const body: BgRemovalRequestBody = { imageBase64 };
     const res = await fetch(`${url}/cutout`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Only sent when configured, so a localhost sidecar needs no token and
+        // a public one is never reachable without it.
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     });

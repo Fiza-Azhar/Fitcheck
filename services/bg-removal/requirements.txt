@@ -2,3 +2,7 @@ flask>=3.0
 rembg>=2.0.50
 pillow>=10.0
 onnxruntime>=1.17
+# Production WSGI server. Flask's built-in server is single-threaded and warns
+# when used in production; the container runs gunicorn instead. Not needed for
+# local dev (`python app.py`), but harmless there.
+gunicorn>=22.0

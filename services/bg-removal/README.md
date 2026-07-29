@@ -37,13 +37,56 @@ python app.py         # listens on http://127.0.0.1:7000
 
 `npm run start:expo-only` starts Expo without the sidecar if you ever need that.
 
+## Deploying it (required for the built app)
+
+Locally the sidecar lives at `127.0.0.1:7000`, which the *deployed* Expo server
+cannot reach — it runs on Expo's hosting, not your laptop. So in the shipped app
+cutouts stay off until this service is hosted somewhere public.
+
+**Render (free tier).** Its free web service gives 0.1 CPU and 512 MB, which the
+default `u2net` (~1 GB at peak) will not fit in — so Render **must** run the
+pruned model. New → Web Service → point it at this directory's `Dockerfile`, then:
+
+1. Set a **build argument** `BG_REMOVAL_MODEL=u2netp` (~4.7 MB, fits the 512 MB
+   box; edges are a little rougher than u2net). It must be a *build* arg, not a
+   runtime env var: the model is baked into the image at build time, so a value
+   supplied only at runtime would miss the baked cache and re-download the model
+   on every cold start.
+2. Set env var `BG_REMOVAL_TOKEN` to a long random string. (The image sets
+   `REQUIRE_BG_REMOVAL_TOKEN=1`, so it refuses to start without this.)
+3. Render injects `PORT` itself — leave it alone.
+4. The service serves at `https://<name>.onrender.com`.
+
+Expect ~10–20s per cutout on 0.1 CPU, plus a cold start after 15 minutes idle.
+
+**Hugging Face Spaces** is faster if the quality or speed disappoints — the
+CPU-Basic hardware (2 vCPU, 16 GB) runs full `u2net` — but note it is **not a
+free Docker-hosting path**: Hugging Face requires a PRO, Team, or Enterprise plan
+to create compute-backed Docker Spaces. On an eligible account, create a Space →
+SDK **Docker** → public, push the same three files, and add `BG_REMOVAL_TOKEN`
+under Settings → Variables and secrets.
+
+Free tiers sleep when idle. The first cutout after a sleep pays the wake-up,
+which is why the app allows 60s for it; the model itself is baked into the image
+at build time so a cold start never re-downloads 176 MB.
+
 ## Point the app at it
 
-Add to the app's `.env`:
+Local development — add to the app's `.env`:
 
 ```
 BG_REMOVAL_URL=http://127.0.0.1:7000
 ```
+
+Production — set both on the deployed server (`eas env:create --environment production`):
+
+```
+BG_REMOVAL_URL=https://<user>-<space>.hf.space
+BG_REMOVAL_TOKEN=<the same random string as the Space secret>
+```
+
+Neither takes an `EXPO_PUBLIC_` prefix: these are server-only, and the token
+must never reach the app bundle.
 
 If `BG_REMOVAL_URL` is **unset**, cutouts are skipped entirely — garments save
 with their original photo and the app still works. Background removal is a

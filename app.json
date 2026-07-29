@@ -52,6 +52,15 @@
           "cameraPermission": "Allow Fitcheck to access your camera so you can photograph items to add to your wardrobe.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
       ]
     ],
     "experiments": {
