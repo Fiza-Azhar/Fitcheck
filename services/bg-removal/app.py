@@ -32,6 +32,12 @@ from PIL import Image
 MODEL = os.environ.get("BG_REMOVAL_MODEL", "u2net")
 TOKEN = os.environ.get("BG_REMOVAL_TOKEN")
 
+# Fail closed on a public deployment. The Docker image sets REQUIRE_BG_REMOVAL_TOKEN=1,
+# so forgetting the secret crashes startup instead of silently leaving /cutout open
+# to anyone. Local `python app.py` never sets it, so dev stays tokenless.
+if os.environ.get("REQUIRE_BG_REMOVAL_TOKEN") == "1" and not TOKEN:
+    raise RuntimeError("BG_REMOVAL_TOKEN is required when REQUIRE_BG_REMOVAL_TOKEN=1")
+
 app = Flask(__name__)
 
 # One session, reused across requests, so the model loads once and not per call.

@@ -33,6 +33,17 @@ RUN python -c "from rembg.session_factory import new_session; new_session('${BG_
 
 COPY app.py .
 
+# Run as an unprivileged user: /cutout decodes attacker-controlled image bytes on
+# a public endpoint, so it must not do that as root. Created after the model
+# preload so /app (including /app/models) can be handed to the runtime user.
+RUN useradd --create-home --uid 10001 sidecar \
+    && chown -R sidecar:sidecar /app
+USER sidecar
+
+# Fail closed: this hosted image refuses to start unless BG_REMOVAL_TOKEN is set
+# (see app.py), so a missed secret can never leave /cutout open to the internet.
+ENV REQUIRE_BG_REMOVAL_TOKEN=1
+
 # Hugging Face Spaces expects 7860; Render and Fly inject their own PORT, which
 # overrides this at runtime.
 ENV PORT=7860

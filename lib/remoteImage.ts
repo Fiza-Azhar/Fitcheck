@@ -7,10 +7,22 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 // would rot the moment they change it. So the URL is downloaded and re-encoded
 // into the same base64 JPEG the add-photo flow produces, ready for createGarment.
 
+// The merchant CDN is a third party we don't control: it can hang or serve a
+// huge file. Bound both — a stalled download must not keep the Buy flow pending,
+// and an oversize one must not be buffered into memory on a phone.
+const TIMEOUT_MS = 15000;
+const MAX_BYTES = 8 * 1024 * 1024; // real product photos sit far under 8 MB
+
 export async function fetchRemoteImageBase64(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) return null;
+    // Reject oversize downloads before arrayBuffer() pulls them into memory. Most
+    // CDNs send content-length; when one doesn't, the abort timeout is the guard.
+    const declared = Number(res.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > MAX_BYTES) return null;
     const contentType = res.headers.get('content-type') ?? '';
     const base64 = encode(await res.arrayBuffer());
     // Merchants serve PNG and WEBP as often as JPEG, and the bucket stores
@@ -25,7 +37,9 @@ export async function fetchRemoteImageBase64(url: string): Promise<string | null
     return saved.base64 ?? null;
   } catch {
     // Callers treat null as "no picture available" and carry on — a merchant
-    // image that won't download is never worth failing the whole save over.
+    // image that won't download (or timed out) is never worth failing the save.
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }

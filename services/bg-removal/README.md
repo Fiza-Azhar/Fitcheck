@@ -47,18 +47,24 @@ cutouts stay off until this service is hosted somewhere public.
 default `u2net` (~1 GB at peak) will not fit in — so Render **must** run the
 pruned model. New → Web Service → point it at this directory's `Dockerfile`, then:
 
-1. Set env var `BG_REMOVAL_MODEL=u2netp` (~4.7 MB, fits the 512 MB box; edges are
-   a little rougher than u2net).
-2. Set env var `BG_REMOVAL_TOKEN` to a long random string.
+1. Set a **build argument** `BG_REMOVAL_MODEL=u2netp` (~4.7 MB, fits the 512 MB
+   box; edges are a little rougher than u2net). It must be a *build* arg, not a
+   runtime env var: the model is baked into the image at build time, so a value
+   supplied only at runtime would miss the baked cache and re-download the model
+   on every cold start.
+2. Set env var `BG_REMOVAL_TOKEN` to a long random string. (The image sets
+   `REQUIRE_BG_REMOVAL_TOKEN=1`, so it refuses to start without this.)
 3. Render injects `PORT` itself — leave it alone.
 4. The service serves at `https://<name>.onrender.com`.
 
 Expect ~10–20s per cutout on 0.1 CPU, plus a cold start after 15 minutes idle.
 
-**Hugging Face Spaces** is the faster free alternative if the quality or speed
-disappoints: 2 vCPU and 16 GB on the free CPU tier, enough for full `u2net`.
-Create a Space → SDK **Docker** → public, push the same three files, and add
-`BG_REMOVAL_TOKEN` under Settings → Variables and secrets.
+**Hugging Face Spaces** is faster if the quality or speed disappoints — the
+CPU-Basic hardware (2 vCPU, 16 GB) runs full `u2net` — but note it is **not a
+free Docker-hosting path**: Hugging Face requires a PRO, Team, or Enterprise plan
+to create compute-backed Docker Spaces. On an eligible account, create a Space →
+SDK **Docker** → public, push the same three files, and add `BG_REMOVAL_TOKEN`
+under Settings → Variables and secrets.
 
 Free tiers sleep when idle. The first cutout after a sleep pays the wake-up,
 which is why the app allows 60s for it; the model itself is baked into the image
