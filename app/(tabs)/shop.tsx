@@ -1,18 +1,22 @@
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Image, Linking } from 'react-native';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useWardrobe } from '@/lib/WardrobeContext';
-import { fetchRecentChecks } from '@/lib/shopChecksApi';
+import { deleteChecksForProduct, fetchRecentChecks } from '@/lib/shopChecksApi';
 import { fetchWishlist, removeWishlistItem } from '@/lib/wishlistApi';
 import { fetchRemoteImageBase64 } from '@/lib/remoteImage';
+import { CheckRowProps } from '@/interfaces/check-row';
+import { ChecksListProps } from '@/interfaces/checks-list';
 import { ShopCheck } from '@/interfaces/shop-check';
+import { ShopCheckGroup } from '@/interfaces/shop-check-group';
 import { WishlistItem } from '@/interfaces/wishlist-item';
 import { EmptyState } from '@/components/fitcheck/EmptyState';
 import { Spinner } from '@/components/fitcheck/Spinner';
 import { LoadState } from '@/types/load-state';
-import { colors, radii, spacing, shadow, type } from '@/constants/design';
+import { button, colors, radii, spacing, shadow, type } from '@/constants/design';
 
 // The Shop tab is the phone side of the browser extension: the extension checks
 // products and saves candidates while you shop, and this screen shows that
@@ -25,12 +29,15 @@ export default function ShopScreen() {
   const { addItem } = useWardrobe();
   const [tab, setTab] = useState<Tab>('checks');
 
-  const [checks, setChecks] = useState<ShopCheck[]>([]);
+  const [checks, setChecks] = useState<ShopCheckGroup[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [state, setState] = useState<LoadState>('loading');
   const [error, setError] = useState<string | null>(null);
-  // Every wishlist item currently mid-action. A Set (not a single id) so that
-  // finishing one item's action can't re-enable another item's still-running one.
+  // Every row currently mid-action, across both tabs — wishlist items by their
+  // own id, checked products by their newest check's id. A Set (not a single id)
+  // so that finishing one item's action can't re-enable another's still-running
+  // one. The two tabs never render at once, so the shared set can't collide
+  // visually even in the unlikely event two ids matched.
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const markBusy = (id: string) => setBusyIds((prev) => new Set(prev).add(id));
@@ -99,6 +106,21 @@ export default function ShopScreen() {
     );
   };
 
+  // Swipe-to-delete on a "Recently checked" row. One row stands for every time
+  // that product was checked, so this clears the whole group — deleting only the
+  // newest row would let an older one take its place on the very next load and
+  // read as "delete didn't work".
+  const deleteCheck = (group: ShopCheckGroup) => {
+    const { id } = group.check;
+    markBusy(id);
+    // Database first, local state only once it confirms — the same rule the
+    // wardrobe follows, so what's on screen is always something that persisted.
+    deleteChecksForProduct(group.urls)
+      .then(() => setChecks((prev) => prev.filter((g) => g.check.id !== id)))
+      .catch(() => notify('Could not remove', 'The item is still in your history — please try again.'))
+      .finally(() => clearBusy(id));
+  };
+
   const remove = (item: WishlistItem) => {
     void confirmAction('Remove', `Remove “${item.name}” from your wishlist?`, 'Remove').then(async (ok) => {
       if (!ok) return;
@@ -135,7 +157,7 @@ export default function ShopScreen() {
           onAction={() => void load()}
         />
       ) : tab === 'checks' ? (
-        <ChecksList checks={checks} />
+        <ChecksList checks={checks} busyIds={busyIds} onDelete={deleteCheck} />
       ) : (
         <WishlistList wishlist={wishlist} busyIds={busyIds} onBuy={buy} onRemove={remove} />
       )}
@@ -153,7 +175,7 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
 
 // --- Recently checked ----------------------------------------------------------
 
-function ChecksList({ checks }: { checks: ShopCheck[] }) {
+function ChecksList({ checks, busyIds, onDelete }: ChecksListProps) {
   if (checks.length === 0) {
     return (
       <EmptyState
@@ -165,24 +187,59 @@ function ChecksList({ checks }: { checks: ShopCheck[] }) {
   }
   return (
     <ScrollView contentContainerStyle={styles.list}>
-      {checks.map((c) => (
-        <Pressable
-          key={c.id}
-          style={styles.row}
-          onPress={() => c.productUrl && Linking.openURL(c.productUrl)}
-        >
-          <Thumb uri={c.imageUrl} color={c.color} />
-          <View style={styles.rowBody}>
-            <Text style={styles.rowTitle} numberOfLines={2}>{c.title}</Text>
-            <View style={styles.metaRow}>
-              <VerdictPill check={c} />
-              {c.price ? <Text style={styles.price}>{c.price}</Text> : null}
-            </View>
-            <Text style={styles.time}>{timeAgo(c.checkedAt)}</Text>
-          </View>
-        </Pressable>
+      {checks.map((group) => (
+        <CheckRow
+          key={group.check.id}
+          group={group}
+          busy={busyIds.has(group.check.id)}
+          onDelete={() => onDelete(group)}
+        />
       ))}
+      <Text style={styles.hint}>Swipe a row left to remove it</Text>
     </ScrollView>
+  );
+}
+
+// A checked product, swipeable to reveal Delete. The swipe plus the deliberate
+// tap on the revealed action is the confirmation — no dialog on top, unlike the
+// wardrobe's long-press delete, where the gesture is easy to trigger by accident
+// and the item being destroyed is a real garment rather than a history entry.
+function CheckRow({ group, busy, onDelete }: CheckRowProps) {
+  const { check } = group;
+  return (
+    <ReanimatedSwipeable
+      // Clips the action panel to the card's own corner radius so it doesn't
+      // square off the row while sliding.
+      containerStyle={styles.swipeContainer}
+      friction={2}
+      rightThreshold={40}
+      // A second swipe mid-delete would fire another delete for the same rows.
+      enabled={!busy}
+      renderRightActions={() => (
+        <Pressable
+          onPress={onDelete}
+          disabled={busy}
+          style={[styles.swipeAction, busy && styles.btnDisabled]}
+        >
+          <Text style={styles.swipeActionTxt}>{busy ? 'Removing…' : 'Delete'}</Text>
+        </Pressable>
+      )}
+    >
+      <Pressable
+        style={styles.row}
+        onPress={() => check.productUrl && Linking.openURL(check.productUrl)}
+      >
+        <Thumb uri={check.imageUrl} color={check.color} />
+        <View style={styles.rowBody}>
+          <Text style={styles.rowTitle} numberOfLines={2}>{check.title}</Text>
+          <View style={styles.metaRow}>
+            <VerdictPill check={check} />
+            {check.price ? <Text style={styles.price}>{check.price}</Text> : null}
+          </View>
+          <Text style={styles.time}>{timeAgo(check.checkedAt)}</Text>
+        </View>
+      </Pressable>
+    </ReanimatedSwipeable>
   );
 }
 
@@ -283,11 +340,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   tab: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radii.pill },
-  tabOn: { backgroundColor: colors.accent },
+  tabOn: { backgroundColor: button.primaryBg },
   tabTxt: { fontWeight: '700', color: colors.muted, fontSize: 13 },
-  tabTxtOn: { color: '#FFFFFF' },
+  tabTxtOn: { color: button.primaryTxt },
 
   list: { padding: spacing.lg, gap: spacing.md },
+  // The swipeable wrapper owns the corner radius and clips the action panel; the
+  // row keeps its own radius so it still looks right when not being swiped.
+  swipeContainer: { borderRadius: radii.lg, overflow: 'hidden' },
+  swipeAction: {
+    backgroundColor: button.dangerBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  swipeActionTxt: { color: button.dangerTxt, fontWeight: '700', fontSize: 14 },
+  hint: { ...type.label, textAlign: 'center', marginTop: spacing.xs },
   row: { flexDirection: 'row', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow },
   thumb: { width: 64, height: 80, borderRadius: radii.md, backgroundColor: colors.chip },
   rowBody: { flex: 1, gap: spacing.xs, justifyContent: 'center' },
@@ -301,9 +369,9 @@ const styles = StyleSheet.create({
 
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   btn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.md },
-  btnPrimary: { backgroundColor: colors.text },
-  btnPrimaryTxt: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  btnGhost: { borderWidth: 1, borderColor: colors.border },
-  btnGhostTxt: { color: colors.text, fontWeight: '700', fontSize: 13 },
+  btnPrimary: { backgroundColor: button.primaryBg },
+  btnPrimaryTxt: { color: button.primaryTxt, fontWeight: '700', fontSize: 13 },
+  btnGhost: { backgroundColor: button.secondaryBg, borderWidth: 1, borderColor: button.outline },
+  btnGhostTxt: { color: button.secondaryTxt, fontWeight: '700', fontSize: 13 },
   btnDisabled: { opacity: 0.5 },
 });
