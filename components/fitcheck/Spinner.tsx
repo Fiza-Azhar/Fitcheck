@@ -5,7 +5,7 @@ import { colors, spacing, type } from '@/constants/design';
 export function Spinner({ label = 'AI is analysing…' }: SpinnerProps) {
   return (
     <View style={styles.wrap}>
-      <ActivityIndicator color={colors.accent} size="large" />
+      <ActivityIndicator color={colors.accentDeep} size="large" />
       <Text style={[type.label, { marginTop: spacing.md }]}>{label}</Text>
     </View>
   );

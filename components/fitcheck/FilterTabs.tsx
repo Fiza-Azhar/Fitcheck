@@ -1,7 +1,7 @@
 import { ScrollView, Pressable, Text, StyleSheet } from 'react-native';
 import { FilterTabsProps } from '@/interfaces/filter-tabs';
 import { FILTERS } from '@/lib/data';
-import { colors, radii, spacing } from '@/constants/design';
+import { button, colors, radii, spacing } from '@/constants/design';
 
 export function FilterTabs({ value, onChange }: FilterTabsProps) {
   return (
@@ -21,8 +21,8 @@ export function FilterTabs({ value, onChange }: FilterTabsProps) {
 const styles = StyleSheet.create({
   scroll: { flexGrow: 0, flexShrink: 0 },
   row: { flexGrow: 0, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
-  tab: { height: 34, paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  active: { backgroundColor: colors.accent },
+  tab: { height: 34, paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: button.secondaryBg, alignItems: 'center', justifyContent: 'center' },
+  active: { backgroundColor: button.primaryBg },
   txt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: colors.muted, includeFontPadding: false },
-  activeTxt: { color: '#FFFFFF' },
+  activeTxt: { color: button.primaryTxt },
 });

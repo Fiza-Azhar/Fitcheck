@@ -13,5 +13,5 @@ export function Chip({ label, swatch }: ChipProps) {
 
 const styles = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.chip, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4, gap: 6 },
-  swatch: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
+  swatch: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: colors.hairline },
 });

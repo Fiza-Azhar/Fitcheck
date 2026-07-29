@@ -1,12 +1,13 @@
-import { View, Text, Pressable, Alert, StyleSheet } from 'react-native';
+import { View, Text, Image, Pressable, Alert, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreenProps } from '@/interfaces/auth';
 import { AuthProvider } from '@/types/auth';
-import { colors, radii, shadow, spacing } from '@/constants/design';
+import { button, colors, radii, shadow, spacing } from '@/constants/design';
+import { images } from '@/constants/assets';
 
-// Shared chrome for the Sign In / Create Account screens: wordmark, title,
+// Shared chrome for the Sign In / Create Account screens: logo, title,
 // subtitle, the caller's form fields, the primary action, and the "continue
 // with" placeholders. Only the fields and copy differ between the two screens.
 export function AuthScreen({
@@ -38,7 +39,14 @@ export function AuthScreen({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Text style={styles.wordmark}>Fitcheck</Text>
+        {/* The asset is the full lockup — mark, wordmark and tagline — so it
+            replaces the text wordmark rather than sitting next to it. */}
+        <Image
+          source={images.logo}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="Fitcheck"
+        />
 
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
@@ -91,7 +99,7 @@ function SocialButton({ provider }: { provider: AuthProvider }) {
       style={({ pressed }) => [styles.social, pressed && styles.pressed]}
       onPress={() => Alert.alert(`${label} sign-in`, 'This option is not set up yet.')}
     >
-      <Ionicons name={icon} size={18} color={colors.text} />
+      <Ionicons name={icon} size={18} color={button.secondaryTxt} />
       <Text style={styles.socialTxt}>{label}</Text>
     </Pressable>
   );
@@ -101,13 +109,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl, gap: spacing.lg },
-  wordmark: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
+  // Square asset, so width tracks height; the art carries its own padding, which
+  // is why the surrounding gap looks generous at this size.
+  logo: { width: 150, height: 150, alignSelf: 'center', marginBottom: -spacing.md },
   title: {
     fontSize: 28,
     fontWeight: '700',
@@ -125,13 +129,13 @@ const styles = StyleSheet.create({
   },
   form: { gap: spacing.lg },
   primary: {
-    backgroundColor: colors.text,
+    backgroundColor: button.primaryBg,
     borderRadius: radii.pill,
     paddingVertical: spacing.lg,
     alignItems: 'center',
     ...shadow,
   },
-  primaryTxt: { fontSize: 16, fontWeight: '700', color: colors.surface },
+  primaryTxt: { fontSize: 16, fontWeight: '700', color: button.primaryTxt },
   pressed: { opacity: 0.7 },
   error: {
     fontSize: 13,
@@ -150,14 +154,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: button.secondaryBg,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: button.outline,
     paddingVertical: spacing.md,
   },
-  socialTxt: { fontSize: 14, fontWeight: '600', color: colors.text },
+  socialTxt: { fontSize: 14, fontWeight: '600', color: button.secondaryTxt },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerTxt: { fontSize: 14, fontWeight: '500', color: colors.muted },
-  footerLink: { fontSize: 14, fontWeight: '700', color: colors.accent },
+  footerLink: { fontSize: 14, fontWeight: '700', color: colors.accentDeep },
 });

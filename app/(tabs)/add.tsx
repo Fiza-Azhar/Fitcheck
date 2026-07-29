@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, TextInput } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRootNavigationState, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
@@ -18,7 +18,7 @@ import { AddPhase } from '@/types/add-item';
 import { PhotoSource } from '@/types/photo-source';
 import { Formality } from '@/types/garment';
 import { CATEGORIES, OCCASIONS, SEASONS } from '@/constants/garment';
-import { colors, radii, spacing, shadow, type } from '@/constants/design';
+import { button, colors, radii, spacing, shadow, type } from '@/constants/design';
 
 const FORMALITY_LABELS = ['Very casual', 'Casual', 'Smart', 'Formal', 'Black tie'];
 
@@ -62,11 +62,38 @@ export default function AddScreen() {
 
   const reset = useCallback(() => {
     setPhase('idle');
+    // Must be cleared with the rest: PhotoSourceSheet is a <Modal>, and on Android
+    // a Modal renders in its own native window *above* the tab navigator. Leaving
+    // the tab with the sheet open therefore left that window covering the whole
+    // app and swallowing every touch — the screen read as blank and the tab bar
+    // stopped responding, rather than the capture simply being abandoned.
+    setPickerOpen(false);
     setPhotoUri(null);
     setPhotoBase64(null);
     setDraft(emptyDraft());
     setAiFailed(false);
     setRemoveBg(true);
+  }, []);
+
+  // TEMP DIAGNOSTIC: the Add tab intermittently renders blank (no add button) when
+  // selected from the bottom bar. These logs answer the two open questions at once:
+  //   1. Is the screen even mounted and rendering, and with which `phase`?
+  //      Every phase renders something, so a blank screen with phase 'idle' means
+  //      the problem is layout/mounting, not state.
+  //   2. Is `router.push('/')` after a save stacking duplicate `(tabs)` instances?
+  //      Watch `rootRoutes` grow past 1 — if it does, the bottom bar is driving a
+  //      different tab navigator than the one on screen.
+  // Remove all of this once the cause is confirmed.
+  const navState = useRootNavigationState();
+  console.log(
+    '[add] render — phase:', phase,
+    '| pickerOpen:', pickerOpen,
+    '| rootRoutes:', navState?.routes?.map((r) => r.name).join(',') ?? 'none',
+  );
+
+  useEffect(() => {
+    console.log('[add] MOUNTED');
+    return () => console.log('[add] UNMOUNTED');
   }, []);
 
   // Tab screens stay mounted, so without this the phase (form, spinner, etc.)
@@ -76,7 +103,11 @@ export default function AddScreen() {
   // as OS activities (not navigation), so this does not fire mid-capture.
   useFocusEffect(
     useCallback(() => {
-      return () => reset();
+      console.log('[add] FOCUS');
+      return () => {
+        console.log('[add] BLUR → reset()');
+        reset();
+      };
     }, [reset]),
   );
 
@@ -176,7 +207,11 @@ export default function AddScreen() {
       >
         {phase === 'idle' && (
           <Pressable style={styles.upload} onPress={() => setPickerOpen(true)}>
-            <Text style={styles.plus}>＋</Text>
+            {/* The gold tertiary of the button scale, as a filled icon button —
+                a bare gold glyph on the ivory ground is barely 2:1. */}
+            <View style={styles.plusBadge}>
+              <Text style={styles.plus}>＋</Text>
+            </View>
             <Text style={type.label}>Click to add photo</Text>
           </Pressable>
         )}
@@ -197,7 +232,7 @@ export default function AddScreen() {
         {(phase === 'ready' || phase === 'saving') && (
           <View style={styles.form}>
             <GarmentTile
-              garment={{ ...draft, id: 'preview', wearCount: 0, imageUrl: photoUri, cutoutUrl: null }}
+              garment={{ ...draft, id: 'preview', imageUrl: photoUri, cutoutUrl: null }}
               height={200}
             />
 
@@ -352,10 +387,15 @@ const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   upload: {
     height: 220, borderRadius: radii.lg, borderWidth: 2, borderStyle: 'dashed',
-    borderColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center',
-    gap: spacing.sm, backgroundColor: colors.surface,
+    borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+    gap: spacing.md, backgroundColor: colors.surface,
   },
-  plus: { fontSize: 44, color: colors.accent },
+  plusBadge: {
+    width: 56, height: 56, borderRadius: radii.pill, backgroundColor: button.tertiaryBg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  // The glyph is full-width (＋), so it needs no extra optical centring nudge.
+  plus: { fontSize: 30, lineHeight: 34, color: button.tertiaryTxt },
   form: { gap: spacing.lg, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, ...shadow },
   notice: { backgroundColor: colors.warnBg, borderRadius: radii.md, padding: spacing.md },
   noticeTxt: { fontSize: 13, fontWeight: '600', color: colors.warn, lineHeight: 18 },
@@ -368,9 +408,9 @@ const styles = StyleSheet.create({
   colorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   swatch: { width: 36, height: 36, borderRadius: radii.sm, borderWidth: 1, borderColor: colors.border },
   hint: { ...type.label, textAlign: 'center' },
-  save: { backgroundColor: colors.accent, borderRadius: radii.md, paddingVertical: spacing.md, alignItems: 'center' },
+  save: { backgroundColor: button.primaryBg, borderRadius: radii.md, paddingVertical: spacing.md, alignItems: 'center' },
   saveOff: { opacity: 0.4 },
-  saveTxt: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  saveTxt: { color: button.primaryTxt, fontWeight: '700', fontSize: 15 },
   retake: { alignItems: 'center', paddingVertical: spacing.sm },
   retakeTxt: { ...type.label, textDecorationLine: 'underline' },
 });

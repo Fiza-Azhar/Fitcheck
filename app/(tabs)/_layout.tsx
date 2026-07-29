@@ -12,7 +12,7 @@ export default function TabLayout() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accentDeep} />
       </View>
     );
   }
@@ -24,7 +24,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
+        tabBarActiveTintColor: colors.accentDeep,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         // Otherwise Android's adjustResize rides the tab bar up on top of the

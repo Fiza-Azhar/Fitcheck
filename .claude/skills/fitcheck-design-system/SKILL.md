@@ -34,4 +34,21 @@ History: this was a frontend-only prototype (reversed 2026-07-17), then a single
 
 ## Palette
 
-cream `#F7F1E8` bg · charcoal `#2E2A26` text · terracotta `#C56B4A` accent · green `#4F8A5B` / amber `#C98A2E` for Shop Check.
+ivory `#F7F1E8` bg · off-white `#FAF9F6` surface · near-black `#1A1A1A` text · gold `#D4AF37` accent · beige `#F5F5DC` chip. Retheme history: terracotta/charcoal → navy/periwinkle → this, all on 2026-07-29. **Navy `#0E2036` and periwinkle `#7A70ED` were removed at the user's request — don't reintroduce them or anything derived from them.**
+
+- `accent` gold is a **fill** colour: 1.9:1 on ivory. Anything *drawn* in it — links, focus rings, spinners, the active tab icon — uses `accentDeep` `#7A6019` instead (5.3:1). `accentSoft` `#F0E6C4` is the gold tint behind badges.
+- `onFill` `#FAF9F6` is the label colour on any filled surface (dark buttons, dark garment tiles) — never a raw `'#FFFFFF'` in a component.
+- `danger` `#C0453C` for destructive actions (the delete swipe). Green `#4F8A5B` / amber `#C98A2E` still carry Shop Check verdicts — amber sits close to the gold accent, so keep the two apart on screen.
+- `scrim` / `hairline` are the ink at low alpha — use them instead of `rgba(0,0,0,…)`.
+
+**Buttons use their own scale**, exported as `button` from the same file. Its entries name palette colours rather than repeating hexes, so a fill and the surface it matches can't drift. Every fill ships with its label colour; use them as a pair.
+
+| variant | fill | label | used for |
+|---|---|---|---|
+| `primaryBg` / `primaryTxt` | `#1A1A1A` | `#FAF9F6` | main action, selected pill/tab |
+| `secondaryBg` / `secondaryTxt` + `outline` | `#FAF9F6` | `#1A1A1A` | outlined and ghost buttons, unselected tabs |
+| `tertiaryBg` / `tertiaryTxt` | `#D4AF37` | `#1A1A1A` | gold icon buttons (the Add-photo ＋) |
+| `neutralBg` / `neutralTxt` | `#F5F5DC` | `#1A1A1A` | unselected option pills |
+| `dangerBg` / `dangerTxt` | `#C0453C` | `#FAF9F6` | destructive (delete swipe) |
+
+Gold stays off button *labels and lines* — `accentDeep` carries the tab bar tint, spinners, the input focus ring and links.
