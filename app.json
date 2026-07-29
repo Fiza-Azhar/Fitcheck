@@ -30,7 +30,7 @@
       [
         "expo-router",
         {
-          "origin": "https://REPLACE_AFTER_EAS_DEPLOY.expo.app"
+          "origin": "https://fitcheck-desolint.expo.app"
         }
       ],
       [
@@ -60,12 +60,12 @@
     },
     "extra": {
       "router": {
-        "origin": "https://REPLACE_AFTER_EAS_DEPLOY.expo.app"
+        "origin": "https://fitcheck-desolint.expo.app"
       },
       "eas": {
-        "projectId": "47a2a498-4357-410c-99e1-84a20ceddbf8"
+        "projectId": "3f10e266-93b8-4ee4-9bc3-f72fef190a6c"
       }
     },
-    "owner": "fiza13"
+    "owner": "desol-int"
   }
 }
