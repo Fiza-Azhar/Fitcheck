@@ -12,7 +12,6 @@ export interface Garment {
   pattern: string;
   seasons: SeasonName[];
   occasions: Occasion[];
-  wearCount: number;
   imageUrl: string | null;
   // Absolute URL to the transparent cutout, or null. Tiles prefer this over
   // imageUrl for a clean flatlay; null just falls back to the original photo.
@@ -20,4 +19,4 @@ export interface Garment {
 }
 
 // The garment fields the AI proposes and the user edits, before it exists server-side.
-export type GarmentDraft = Omit<Garment, 'id' | 'imageUrl' | 'cutoutUrl' | 'wearCount'>;
+export type GarmentDraft = Omit<Garment, 'id' | 'imageUrl' | 'cutoutUrl'>;

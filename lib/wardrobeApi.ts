@@ -40,7 +40,6 @@ async function toGarment(record: GarmentRecord): Promise<Garment> {
     pattern: record.pattern,
     seasons: record.seasons,
     occasions: record.occasions,
-    wearCount: record.wearCount,
     imageUrl,
     cutoutUrl,
   };

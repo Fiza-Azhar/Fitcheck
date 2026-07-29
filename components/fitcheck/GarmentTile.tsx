@@ -22,7 +22,7 @@ export function GarmentTile({ garment, height = 150 }: GarmentTileProps) {
   const light = isLight(garment.color);
   return (
     <View style={[styles.tile, { backgroundColor: garment.color, height }]}>
-      <Text style={[styles.label, { color: light ? colors.text : '#FFFFFF' }]} numberOfLines={2}>
+      <Text style={[styles.label, { color: light ? colors.text : colors.onFill }]} numberOfLines={2}>
         {garment.name}
       </Text>
     </View>
@@ -30,7 +30,7 @@ export function GarmentTile({ garment, height = 150 }: GarmentTileProps) {
 }
 
 const styles = StyleSheet.create({
-  tile: { borderRadius: radii.md, padding: spacing.md, justifyContent: 'flex-end', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
+  tile: { borderRadius: radii.md, padding: spacing.md, justifyContent: 'flex-end', borderWidth: 1, borderColor: colors.hairline, overflow: 'hidden' },
   photoTile: { backgroundColor: colors.chip, padding: spacing.sm, justifyContent: 'center', alignItems: 'center' },
   photo: { width: '100%', height: '100%' },
   label: { fontSize: 13, fontWeight: '700' },

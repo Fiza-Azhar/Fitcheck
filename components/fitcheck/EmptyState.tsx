@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { EmptyStateProps } from '@/interfaces/empty-state';
-import { colors, radii, spacing, type } from '@/constants/design';
+import { button, colors, radii, spacing, type } from '@/constants/design';
 
 // One component for "nothing here yet" and "something broke", because the two
 // must never be confused on screen — an unreachable server used to look exactly
@@ -37,9 +37,9 @@ const styles = StyleSheet.create({
   title: { textAlign: 'center' },
   message: { textAlign: 'center', maxWidth: 280, lineHeight: 19 },
   action: {
-    marginTop: spacing.md, backgroundColor: colors.accent, borderRadius: radii.pill,
+    marginTop: spacing.md, backgroundColor: button.primaryBg, borderRadius: radii.pill,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
   },
   actionPressed: { opacity: 0.85 },
-  actionTxt: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  actionTxt: { color: button.primaryTxt, fontWeight: '700', fontSize: 15 },
 });

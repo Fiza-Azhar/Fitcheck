@@ -40,11 +40,11 @@ export function AuthField({
   // row on every focus change and reintroduce the jitter this screen is meant to
   // be rid of. borderWidth stays pinned at 1 in the static style below.
   const wrapStyle = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(focus.value, [0, 1], [colors.border, colors.accent]),
+    borderColor: interpolateColor(focus.value, [0, 1], [colors.border, colors.accentDeep]),
   }));
 
   const labelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(focus.value, [0, 1], [colors.muted, colors.accent]),
+    color: interpolateColor(focus.value, [0, 1], [colors.muted, colors.accentDeep]),
   }));
 
   return (
@@ -101,7 +101,7 @@ export function AuthField({
 const styles = StyleSheet.create({
   field: { gap: spacing.sm },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  action: { fontSize: 13, fontWeight: '600', color: colors.accent },
+  action: { fontSize: 13, fontWeight: '600', color: colors.accentDeep },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',

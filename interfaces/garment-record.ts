@@ -16,6 +16,8 @@ export interface GarmentRecord {
   pattern: string;
   seasons: SeasonName[];
   occasions: Occasion[];
+  // Still a column (not null default 0), so the row type keeps it — but nothing
+  // increments it and no screen shows it since the wear badges were removed.
   wearCount: number;
   // Storage object paths under the garment-images bucket, or null. The cutout is
   // the transparent PNG from the bg-removal sidecar; null when unconfigured or it

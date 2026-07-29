@@ -125,5 +125,5 @@ const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.lg },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, gap: spacing.md, ...shadow },
   meta: { gap: 2 },
-  score: { fontSize: 16, fontWeight: '800', color: colors.accent },
+  score: { fontSize: 16, fontWeight: '800', color: colors.accentDeep },
 });
