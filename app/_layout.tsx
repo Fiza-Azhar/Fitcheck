@@ -1,3 +1,8 @@
+// Hermes (native) has no built-in URL global; lib/shopChecks.ts's productKey()
+// depends on `new URL(...)`. This used to load transitively via lib/supabase.ts
+// — now that Supabase is gone, it needs its own home, and it must run before
+// anything else does.
+import 'react-native-url-polyfill/auto';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

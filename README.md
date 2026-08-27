@@ -25,33 +25,33 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Supabase setup (required for auth & wardrobes)
+## Neon setup (required for auth & wardrobes)
 
-Fitcheck uses Supabase Auth + Row-Level Security + Storage: each user signs in and
-sees only their own wardrobe. Do this once before running the app.
+Fitcheck uses Neon Postgres with a hand-rolled JWT auth layer (see
+`lib/server/auth.ts`): each user signs in and sees only their own wardrobe,
+enforced in application code rather than a DB-level policy. Do this once before
+running the app.
 
 1. **Env vars** — copy `.env.example` to `.env` and fill in:
    - `GROQ_API_KEY` (item analysis + outfits)
-   - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` — Dashboard →
-     Project Settings → API. The **anon** key is safe in the client bundle; RLS
-     protects the data. Never put the service_role key in an `EXPO_PUBLIC_` var.
-2. **Run the schema** — Dashboard → SQL Editor → paste `supabase/schema.sql` → Run.
-   This drops the old single-user table, creates the per-user `garments` table with
-   RLS, and creates the private `garment-images` Storage bucket with its policies.
-   > ⚠️ It deletes existing demo garments — they had no owner and their photos were
-   > local-only, so they can't be carried into the per-user model.
-3. **Disable email confirmation** (for the demo) — Dashboard → Authentication →
-   Providers → Email → turn **Confirm email** off, so signup logs you straight in.
-4. *(Optional)* start the background-removal sidecar for clean cutouts:
+   - `DATABASE_URL` — Neon dashboard → Connect → Connection string → Show
+     password. Server-only; never give it an `EXPO_PUBLIC_` prefix.
+   - `JWT_SECRET` — any random string, e.g.
+     `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+2. **Run the schema** — Neon dashboard → SQL Editor → paste `db/schema.sql` → Run.
+   This creates `users`, `garments`, `wishlist_items`, and `shop_checks`, each
+   scoped to a user by a plain `userId` column (no RLS — every `app/api/**+api.ts`
+   route filters by the userId it decodes from the caller's JWT).
+3. *(Optional)* start the background-removal sidecar for clean cutouts:
    `npm run bg-removal` (needs `BG_REMOVAL_URL` set).
 
 ### Auth demo runbook
 
-1. `npx expo start` (or `npm run web`) — the Groq/bg-removal routes are served by
-   this dev server, so keep it running.
+1. `npx expo start` (or `npm run web`) — the Groq/bg-removal/auth routes are
+   served by this dev server, so keep it running.
 2. Create an account on the **Sign Up** screen → you land in the wardrobe.
-3. Add an item (photo → Groq fills the details → Save). It uploads to Storage and
-   inserts an RLS-scoped row.
+3. Add an item (photo → Groq fills the details → Save). The photo is stored as
+   base64 on the row and inserted scoped to your user id.
 4. Sign out (top-right of the wardrobe) → sign in again → your items persist.
 5. Sign in with the **same email** in another browser/device → the **same wardrobe**
    appears. A second account sees an entirely separate wardrobe.

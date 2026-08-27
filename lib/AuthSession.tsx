@@ -1,57 +1,65 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { AuthSessionValue } from '@/interfaces/auth-session';
-import { supabase } from '@/lib/supabase';
+import { AuthResponseBody, AuthSessionValue, AuthUser, MeResponseBody } from '@/interfaces/auth-session';
+import { apiFetch, getToken, setToken } from '@/lib/apiClient';
 
-// Gates the tabs behind the login screen. Backed by real Supabase Auth: the
-// session is restored from storage on mount and kept live via onAuthStateChange,
-// so a signed-in user survives cold starts. Failures reject rather than resolve
-// to a fake signed-in state — the screens surface the message.
+// Gates the tabs behind the login screen. Backed by a hand-rolled JWT (see
+// lib/server/auth.ts) instead of Supabase Auth: the token is restored from
+// storage on mount and traded for the current user via /api/auth/me, so a
+// signed-in user survives cold starts. Failures reject rather than resolve to a
+// fake signed-in state — the screens surface the message.
 const AuthSessionContext = createContext<AuthSessionValue | null>(null);
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Restore any persisted session first, then flip loading off so the gate can
-    // decide. getSession reads storage; it does not hit the network.
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-
-    // Stay in sync with sign-in / sign-out / token-refresh from anywhere.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-    });
-    return () => sub.subscription.unsubscribe();
+    (async () => {
+      const token = await getToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const { user: me } = await apiFetch<MeResponseBody>('/api/auth/me');
+        setUser(me);
+      } catch {
+        // Token expired, was revoked, or the account is gone — same outcome as
+        // never having signed in.
+        await setToken(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const value = useMemo<AuthSessionValue>(
     () => ({
-      session,
-      user: session?.user ?? null,
+      session: user ? { user } : null,
+      user,
       loading,
       signIn: async (email, password) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const res = await apiFetch<AuthResponseBody>('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        });
+        await setToken(res.token);
+        setUser(res.user);
       },
       signUp: async (name, email, password) => {
-        // Name is kept in user metadata; there is no separate profiles table yet.
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { name } },
+        const res = await apiFetch<AuthResponseBody>('/api/auth/signup', {
+          method: 'POST',
+          body: JSON.stringify({ name, email, password }),
         });
-        if (error) throw error;
+        await setToken(res.token);
+        setUser(res.user);
       },
       signOut: async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        await setToken(null);
+        setUser(null);
       },
     }),
-    [session, loading],
+    [user, loading],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

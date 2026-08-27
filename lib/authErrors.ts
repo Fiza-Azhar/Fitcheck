@@ -1,6 +1,9 @@
-// Turns a raw Supabase AuthError into a short, human sentence for the auth
-// screens. Unknown errors fall through to their own message rather than a canned
-// "something went wrong", so a real cause is never hidden — the app's rule.
+// Turns a raw auth error into a short, human sentence for the auth screens.
+// The API routes (app/api/auth/*+api.ts) throw messages matching these
+// substrings on purpose, so this needed no changes when auth moved off
+// Supabase. Unknown errors fall through to their own message rather than a
+// canned "something went wrong", so a real cause is never hidden — the app's
+// rule.
 export function authErrorMessage(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   const m = raw.toLowerCase();

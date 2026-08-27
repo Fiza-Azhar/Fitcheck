@@ -21,7 +21,8 @@ import { button, colors, radii, spacing, shadow, type } from '@/constants/design
 // The Shop tab is the phone side of the browser extension: the extension checks
 // products and saves candidates while you shop, and this screen shows that
 // activity — a feed of recent checks and a wishlist you can act on. Both read the
-// same Supabase account the extension writes to, scoped by RLS.
+// same account the extension writes to (once it's updated to talk to the new
+// Neon-backed API — see the migration notes for this branch).
 
 type Tab = 'checks' | 'wishlist';
 

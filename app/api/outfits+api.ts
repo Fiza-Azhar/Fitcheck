@@ -4,7 +4,10 @@ import { Occasion } from '@/types/garment';
 import { OCCASIONS } from '@/constants/garment';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+// Groq discontinued llama-3.3-70b-versatile (same volatility as the vision
+// model — see the fitcheck-design-system skill history). Verify against
+// GET /openai/v1/models if outfits start failing again.
+const GROQ_MODEL = 'openai/gpt-oss-120b';
 
 function isPick(v: unknown): v is AiOutfitPick {
   if (typeof v !== 'object' || v === null) return false;
