@@ -17,3 +17,7 @@ export interface WishlistItem {
   price: string | null;
   createdAt: string;
 }
+
+// POST /api/wishlist body — what the browser extension sends when the user
+// saves a scraped product. id/createdAt are assigned server-side.
+export type CreateWishlistItemRequestBody = Omit<WishlistItem, 'id' | 'createdAt'>;
