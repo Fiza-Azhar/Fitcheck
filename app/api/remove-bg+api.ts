@@ -1,9 +1,10 @@
 import { removeBackground } from '@/lib/server/bg';
 import { isUsableBase64Image } from '@/lib/server/validation';
 
-// Thin proxy to the rembg sidecar. It exists so the client (which uploads images
-// straight to Supabase Storage) can still get a cutout without holding the
-// sidecar URL, and without this route ever touching the database. A null cutout
+// Thin proxy to the rembg sidecar. It exists so the client (which sends the
+// original photo to /api/garments as base64) can still get a cutout without
+// holding the sidecar URL, and without this route ever touching the database.
+// A null cutout
 // is a valid, successful response — the sidecar being off or slow is honest
 // degradation, and the client saves the garment with its original photo.
 export async function POST(request: Request): Promise<Response> {

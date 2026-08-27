@@ -7,7 +7,7 @@ import { createGarment, deleteGarment, fetchGarments } from '@/lib/wardrobeApi';
 
 const WardrobeContext = createContext<WardrobeValue | null>(null);
 
-// A cache over Supabase, not the source of truth. Mutations hit the database
+// A cache over the API, not the source of truth. Mutations hit the database
 // first and only touch local state once it confirms them, so what's on screen is
 // always something that actually persisted. The wardrobe is per-user: it reloads
 // when the signed-in user changes and empties on sign-out.

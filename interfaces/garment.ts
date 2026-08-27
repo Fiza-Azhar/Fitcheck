@@ -20,3 +20,11 @@ export interface Garment {
 
 // The garment fields the AI proposes and the user edits, before it exists server-side.
 export type GarmentDraft = Omit<Garment, 'id' | 'imageUrl' | 'cutoutUrl'>;
+
+// POST /api/garments body. Photos travel as raw base64 (no data: prefix,
+// matching what the camera/picker and the bg-removal sidecar already produce);
+// the server stores them as bytea and hands back data URIs in the response.
+export interface CreateGarmentRequestBody extends GarmentDraft {
+  imageBase64?: string;
+  cutoutBase64?: string;
+}
