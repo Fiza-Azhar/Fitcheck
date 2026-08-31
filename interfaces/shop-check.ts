@@ -16,3 +16,7 @@ export interface ShopCheck {
   alreadyOwnCount: number;
   checkedAt: string;
 }
+
+// POST /api/shop-checks body — what the browser extension sends after checking
+// a product against the wardrobe. id/checkedAt are assigned server-side.
+export type CreateShopCheckRequestBody = Omit<ShopCheck, 'id' | 'checkedAt'>;
